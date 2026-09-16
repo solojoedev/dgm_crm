@@ -10,6 +10,7 @@ type ApprovalRow = {
   status: string;
   note: string | null;
   clientName: string;
+  imageUrl: string | null;
 };
 
 const platformLabel: Record<string, string> = {
@@ -55,21 +56,28 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
     async function poll() {
       const { data } = await supabase
         .from("content_items")
-        .select("id, caption, platform, status, note, clients(name)")
+        .select("id, caption, platform, status, note, storage_path, clients(name)")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false });
-      if (data) {
-        setApprovals(
-          data.map((row) => ({
-            id: row.id,
-            caption: row.caption,
-            platform: row.platform,
-            status: row.status,
-            note: row.note,
-            clientName: (row.clients as unknown as { name: string } | null)?.name ?? "Client",
-          }))
-        );
-      }
+      if (!data) return;
+
+      const paths = data.map((row) => row.storage_path).filter((p): p is string => !!p);
+      const { data: signedList } = paths.length
+        ? await supabase.storage.from("files").createSignedUrls(paths, 3600)
+        : { data: [] as { path: string | null; signedUrl: string }[] };
+      const urlMap = new Map((signedList ?? []).map((s) => [s.path, s.signedUrl]));
+
+      setApprovals(
+        data.map((row) => ({
+          id: row.id,
+          caption: row.caption,
+          platform: row.platform,
+          status: row.status,
+          note: row.note,
+          clientName: (row.clients as unknown as { name: string } | null)?.name ?? "Client",
+          imageUrl: row.storage_path ? urlMap.get(row.storage_path) ?? null : null,
+        }))
+      );
     }
 
     const interval = setInterval(poll, 4000);
@@ -117,7 +125,10 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
       .update({ storage_path: path, status: "pending_approval" })
       .eq("id", id);
     if (!updateError) {
-      setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, status: "pending_approval" } : a)));
+      const { data: signed } = await supabase.storage.from("files").createSignedUrl(path, 3600);
+      setApprovals((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: "pending_approval", imageUrl: signed?.signedUrl ?? null } : a))
+      );
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -140,7 +151,14 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
       <div className="approval-list">
         {approvals.map((item, idx) => (
           <div className="approval-card" key={item.id}>
-            <div className="thumb approval-thumb" style={{ background: thumbColors[idx % thumbColors.length] }}></div>
+            {item.imageUrl ? (
+              <a href={item.imageUrl} target="_blank" rel="noopener noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={item.imageUrl} alt="" className="thumb approval-thumb" />
+              </a>
+            ) : (
+              <div className="thumb approval-thumb" style={{ background: thumbColors[idx % thumbColors.length] }}></div>
+            )}
             <div className="approval-body">
               <div className="approval-row1">
                 <span className="approval-title">{item.caption}</span>
@@ -151,21 +169,25 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
               <div className="approval-meta">{item.clientName} · {platformLabel[item.platform] ?? item.platform}</div>
               {item.note && <div className="approval-note">&quot;{item.note}&quot; — client</div>}
 
-              {item.status === "pending_approval" && (
+              {(item.status === "pending_approval" || item.status === "changes_requested") && (
                 <div className="approval-actions">
                   <button className="btn primary" onClick={() => setStatus(item.id, "approved")}>Approve</button>
                   <button className="btn ghost-critical" onClick={() => setStatus(item.id, "changes_requested")}>Request changes</button>
-                  {mode === "agency" && (
+                  {item.imageUrl && (
+                    <a className="btn" href={item.imageUrl} download target="_blank" rel="noopener noreferrer">Download</a>
+                  )}
+                  {mode === "agency" && item.status === "pending_approval" && (
                     <button className="btn" onClick={() => handleSendReminder(item)}>
                       {remindedId === item.id ? "Sent!" : "Send reminder"}
                     </button>
                   )}
+                  {mode === "agency" && item.status === "changes_requested" && (
+                    <button className="btn" onClick={() => handleReviseClick(item.id)}>Upload revision</button>
+                  )}
                 </div>
               )}
-              {item.status === "changes_requested" && mode === "agency" && (
-                <button className="btn primary" onClick={() => handleReviseClick(item.id)}>
-                  Upload revision
-                </button>
+              {item.status === "approved" && item.imageUrl && (
+                <a className="btn" href={item.imageUrl} download target="_blank" rel="noopener noreferrer">Download</a>
               )}
             </div>
           </div>

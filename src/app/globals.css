@@ -232,7 +232,7 @@ button { font-family: inherit; cursor: pointer; }
   display: flex; gap: 14px; background: var(--panel); border: 1px solid var(--border);
   border-radius: 12px; padding: 14px; align-items: flex-start;
 }
-.approval-thumb { width: 84px; height: 84px; flex: none; margin: 0; border-radius: 8px; }
+.approval-thumb { width: 84px; height: 84px; flex: none; margin: 0; border-radius: 8px; object-fit: cover; display: block; }
 .approval-body { flex: 1; min-width: 0; }
 .approval-row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .approval-title { font-weight: 600; font-size: .92rem; }

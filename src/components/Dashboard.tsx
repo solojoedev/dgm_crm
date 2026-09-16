@@ -39,6 +39,7 @@ type ApprovalRow = {
   status: string;
   note: string | null;
   clientName: string;
+  imageUrl: string | null;
 };
 
 type PostRow = {

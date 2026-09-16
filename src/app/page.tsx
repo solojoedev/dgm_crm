@@ -49,7 +49,7 @@ export default async function Home({
       ? supabase.from("proofs").select("id, caption, expires_at, liked, storage_path").eq("client_id", clientId).order("expires_at", { ascending: true })
       : Promise.resolve({ data: [] }),
     clientId
-      ? supabase.from("content_items").select("id, caption, platform, status, note, scheduled_at, clients(name)").eq("client_id", clientId).order("created_at", { ascending: false })
+      ? supabase.from("content_items").select("id, caption, platform, status, note, scheduled_at, storage_path, clients(name)").eq("client_id", clientId).order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     clientId
       ? supabase.from("meetings").select("id, title, platform, join_url, scheduled_at").eq("client_id", clientId).order("scheduled_at", { ascending: true })
@@ -64,10 +64,14 @@ export default async function Home({
 
   const proofRows = (proofs ?? []) as { id: string; caption: string | null; expires_at: string; liked: boolean; storage_path: string }[];
   const fileRows = (files ?? []) as { id: string; name: string; status: string; created_at: string; storage_path: string }[];
+  const approvalStoragePaths = (approvalRows ?? [])
+    .map((row) => row.storage_path as string | null)
+    .filter((p): p is string => !!p);
 
-  const [proofUrlMap, fileUrlMap] = await Promise.all([
+  const [proofUrlMap, fileUrlMap, approvalUrlMap] = await Promise.all([
     signPaths(supabase, proofRows.map((p) => p.storage_path)),
     signPaths(supabase, fileRows.map((f) => f.storage_path)),
+    signPaths(supabase, approvalStoragePaths),
   ]);
 
   const signedProofs = proofRows.map((p) => ({
@@ -94,6 +98,7 @@ export default async function Home({
     status: row.status,
     note: row.note,
     clientName: (row.clients as unknown as { name: string } | null)?.name ?? "Client",
+    imageUrl: row.storage_path ? approvalUrlMap.get(row.storage_path as string) ?? null : null,
   }));
 
   const posts = (approvalRows ?? []).map((row) => ({
