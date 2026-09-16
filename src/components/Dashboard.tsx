@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import Proofs from "@/components/Proofs";
 import Approvals from "@/components/Approvals";
+import Files from "@/components/Files";
 import Meetings from "@/components/Meetings";
 import Chat from "@/components/Chat";
 
@@ -18,11 +19,14 @@ const titles: Record<string, string> = {
   chat: "Chat",
 };
 
+type ClientOption = { id: string; name: string };
+
 type ProofRow = {
   id: string;
   caption: string | null;
   expires_at: string;
   liked: boolean;
+  imageUrl: string | null;
 };
 
 type ApprovalRow = {
@@ -32,6 +36,14 @@ type ApprovalRow = {
   status: string;
   note: string | null;
   clientName: string;
+};
+
+type FileRow = {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+  url: string | null;
 };
 
 type MeetingRow = {
@@ -52,9 +64,11 @@ type MessageRow = {
 type DashboardProps = {
   overview: ReactNode;
   calendar: ReactNode;
-  files: ReactNode;
+  clients: ClientOption[];
+  agencyId: string | null;
   initialProofs: ProofRow[];
   initialApprovals: ApprovalRow[];
+  initialFiles: FileRow[];
   initialMeetings: MeetingRow[];
   initialMessages: MessageRow[];
   clientId: string | null;
@@ -65,9 +79,11 @@ type DashboardProps = {
 export default function Dashboard({
   overview,
   calendar,
-  files,
+  clients,
+  agencyId,
   initialProofs,
   initialApprovals,
+  initialFiles,
   initialMeetings,
   initialMessages,
   clientId,
@@ -79,15 +95,23 @@ export default function Dashboard({
 
   return (
     <div className="app">
-      <Sidebar activeView={activeView} onNavigate={setActiveView} mode={mode} onModeChange={setMode} />
+      <Sidebar
+        activeView={activeView}
+        onNavigate={setActiveView}
+        mode={mode}
+        onModeChange={setMode}
+        clients={clients}
+        selectedClientId={clientId}
+        agencyId={agencyId}
+      />
       <div className="main">
         <Topbar title={titles[activeView] ?? "Tandem"} mode={mode} />
         <main className="content">
           {activeView === "overview" && overview}
           {activeView === "calendar" && calendar}
-          {activeView === "proofs" && <Proofs mode={mode} initialProofs={initialProofs} />}
+          {activeView === "proofs" && <Proofs mode={mode} initialProofs={initialProofs} clientId={clientId} />}
           {activeView === "approvals" && <Approvals mode={mode} initialApprovals={initialApprovals} />}
-          {activeView === "files" && files}
+          {activeView === "files" && <Files initialFiles={initialFiles} clientId={clientId} clientName={clientName} />}
           {activeView === "meetings" && (
             <Meetings mode={mode} initialMeetings={initialMeetings} clientId={clientId} />
           )}

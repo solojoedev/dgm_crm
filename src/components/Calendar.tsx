@@ -17,7 +17,7 @@ const thumbColors = [
   "linear-gradient(135deg,#D08A4E,#6B2E1C)",
 ];
 
-export default async function Calendar() {
+export default async function Calendar({ clientId }: { clientId: string | null }) {
   const supabase = await createClient();
 
   const start = new Date();
@@ -25,12 +25,16 @@ export default async function Calendar() {
   const end = new Date(start);
   end.setDate(end.getDate() + 7);
 
-  const { data: items } = await supabase
+  let query = supabase
     .from("content_items")
     .select("id, caption, status, scheduled_at, clients(name)")
     .gte("scheduled_at", start.toISOString())
     .lt("scheduled_at", end.toISOString())
     .order("scheduled_at", { ascending: true });
+
+  if (clientId) query = query.eq("client_id", clientId);
+
+  const { data: items } = await query;
 
   const rows = items ?? [];
 

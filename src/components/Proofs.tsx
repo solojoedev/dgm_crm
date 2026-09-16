@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type ProofRow = {
@@ -8,6 +8,7 @@ type ProofRow = {
   caption: string | null;
   expires_at: string;
   liked: boolean;
+  imageUrl: string | null;
 };
 
 const thumbColors = [
@@ -33,10 +34,13 @@ function urgencyFor(daysLeft: number) {
 type ProofsProps = {
   mode: "agency" | "client";
   initialProofs: ProofRow[];
+  clientId: string | null;
 };
 
-export default function Proofs({ mode, initialProofs }: ProofsProps) {
+export default function Proofs({ mode, initialProofs, clientId }: ProofsProps) {
   const [proofs, setProofs] = useState(initialProofs);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function toggleLike(id: string, liked: boolean) {
     setProofs((prev) => prev.map((p) => (p.id === id ? { ...p, liked } : p)));
@@ -44,14 +48,67 @@ export default function Proofs({ mode, initialProofs }: ProofsProps) {
     await supabase.from("proofs").update({ liked }).eq("id", id);
   }
 
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !clientId) return;
+    setUploading(true);
+    const supabase = createClient();
+    const newRows: ProofRow[] = [];
+
+    for (const file of Array.from(fileList)) {
+      const path = `proofs/${clientId}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("files").upload(path, file);
+      if (uploadError) continue;
+
+      const mediaType = file.type.startsWith("video") ? "video" : "image";
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("proofs")
+        .insert({ client_id: clientId, storage_path: path, media_type: mediaType, caption: file.name, expires_at: expiresAt })
+        .select()
+        .single();
+      if (insertError || !inserted) continue;
+
+      const { data: signed } = await supabase.storage.from("files").createSignedUrl(path, 3600);
+      newRows.push({
+        id: inserted.id,
+        caption: inserted.caption,
+        expires_at: inserted.expires_at,
+        liked: false,
+        imageUrl: signed?.signedUrl ?? null,
+      });
+    }
+
+    setProofs((prev) => [...newRows, ...prev]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   return (
     <section>
-      <div className="view-head">
-        <h2>Proofs</h2>
-        {mode === "agency" ? (
-          <p>Raw uploads clear automatically 30 days after they&apos;re added — pull client favorites into the calendar before then.</p>
-        ) : (
-          <p>Tap the heart on anything you&apos;d like us to use. Anything left unpicked clears automatically after 30 days.</p>
+      <div className="view-head files-head">
+        <div>
+          <h2>Proofs</h2>
+          {mode === "agency" ? (
+            <p>Raw uploads clear automatically 30 days after they&apos;re added — pull client favorites into the calendar before then.</p>
+          ) : (
+            <p>Tap the heart on anything you&apos;d like us to use. Anything left unpicked clears automatically after 30 days.</p>
+          )}
+        </div>
+        {mode === "agency" && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <button className="btn primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              {uploading ? "Uploading…" : "+ Upload photos/videos"}
+            </button>
+          </>
         )}
       </div>
 
@@ -64,7 +121,12 @@ export default function Proofs({ mode, initialProofs }: ProofsProps) {
               <div className={`proof-expiry ${urgency !== "ok" ? urgency : ""}`}>
                 {daysLeft} day{daysLeft === 1 ? "" : "s"} left
               </div>
-              <div style={{ position: "absolute", inset: 0, background: thumbColors[idx % thumbColors.length] }}></div>
+              {proof.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={proof.imageUrl} alt={proof.caption ?? ""} className="proof-img" />
+              ) : (
+                <div style={{ position: "absolute", inset: 0, background: thumbColors[idx % thumbColors.length] }}></div>
+              )}
               <div className="proof-overlay"><span>{proof.caption}</span></div>
               {proof.liked && mode === "agency" && <button className="btn proof-addcal">+ Calendar</button>}
               <button

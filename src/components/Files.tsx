@@ -1,4 +1,15 @@
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+type FileRow = {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+  url: string | null;
+};
 
 const typeIcons: Record<string, string> = { jpg: "🖼️", jpeg: "🖼️", png: "🖼️", pdf: "📄", zip: "🗂️" };
 
@@ -21,15 +32,43 @@ const statusMeta: Record<string, { label: string; chip: string }> = {
   shared: { label: "Shared", chip: "neutral" },
 };
 
-export default async function Files() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("files")
-    .select("id, name, status, created_at, clients(name)")
-    .order("created_at", { ascending: false });
+type FilesProps = {
+  initialFiles: FileRow[];
+  clientId: string | null;
+  clientName: string;
+};
 
-  const files = data ?? [];
-  const clientName = (files[0]?.clients as unknown as { name: string } | null)?.name ?? "your client";
+export default function Files({ initialFiles, clientId, clientName }: FilesProps) {
+  const [files, setFiles] = useState(initialFiles);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !clientId) return;
+    setUploading(true);
+    const supabase = createClient();
+    const newRows: FileRow[] = [];
+
+    for (const file of Array.from(fileList)) {
+      const path = `files/${clientId}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("files").upload(path, file);
+      if (uploadError) continue;
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("files")
+        .insert({ client_id: clientId, name: file.name, storage_path: path, status: "shared" })
+        .select()
+        .single();
+      if (insertError || !inserted) continue;
+
+      const { data: signed } = await supabase.storage.from("files").createSignedUrl(path, 3600);
+      newRows.push({ id: inserted.id, name: inserted.name, status: inserted.status, created_at: inserted.created_at, url: signed?.signedUrl ?? null });
+    }
+
+    setFiles((prev) => [...newRows, ...prev]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   return (
     <section>
@@ -38,24 +77,30 @@ export default async function Files() {
           <h2>Files</h2>
           <p>Shared between Tandem and {clientName}.</p>
         </div>
-        <button className="btn primary">+ Upload file</button>
+        <input ref={fileInputRef} type="file" multiple style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
+        <button className="btn primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          {uploading ? "Uploading…" : "+ Upload file"}
+        </button>
       </div>
 
       <div className="table-wrap">
         <table>
-          <thead>
-            <tr><th>File</th><th>Type</th><th>Date</th><th>Status</th></tr>
-          </thead>
+          <thead><tr><th>File</th><th>Type</th><th>Date</th><th>Status</th></tr></thead>
           <tbody>
             {files.map((file) => (
               <tr key={file.id}>
                 <td>
                   <div className="file-name">
-                    <span className="file-icon">{iconFor(file.name)}</span> {file.name}
+                    <span className="file-icon">{iconFor(file.name)}</span>
+                    {file.url ? (
+                      <a href={file.url} target="_blank" rel="noopener noreferrer">{file.name}</a>
+                    ) : (
+                      file.name
+                    )}
                   </div>
                 </td>
                 <td>{typeFor(file.name)}</td>
-                <td>{new Date(file.created_at as string).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
+                <td>{new Date(file.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
                 <td>
                   <span className={`chip ${statusMeta[file.status]?.chip ?? "neutral"}`}>
                     {statusMeta[file.status]?.label ?? file.status}
