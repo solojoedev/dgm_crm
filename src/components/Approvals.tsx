@@ -94,17 +94,11 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  const visible = mode === "agency" ? approvals : approvals.filter((a) => ["pending_approval", "changes_requested"].includes(a.status) || a.status === "approved");
-
   return (
     <section>
       <div className="view-head">
         <h2>Approvals</h2>
-        {mode === "agency" ? (
-          <p>Status of everything out for client review.</p>
-        ) : (
-          <p>Review what&apos;s going out under your name before it&apos;s live.</p>
-        )}
+        <p>Everything out for review — either side can approve or request changes.</p>
       </div>
 
       <input
@@ -116,7 +110,7 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
       />
 
       <div className="approval-list">
-        {visible.map((item, idx) => (
+        {approvals.map((item, idx) => (
           <div className="approval-card" key={item.id}>
             <div className="thumb approval-thumb" style={{ background: thumbColors[idx % thumbColors.length] }}></div>
             <div className="approval-body">
@@ -129,22 +123,21 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
               <div className="approval-meta">{item.clientName} · {platformLabel[item.platform] ?? item.platform}</div>
               {item.note && <div className="approval-note">&quot;{item.note}&quot; — client</div>}
 
-              {mode === "agency" && item.status === "pending_approval" && (
-                <button className="btn" onClick={() => handleSendReminder(item)}>
-                  {remindedId === item.id ? "Sent!" : "Send reminder"}
-                </button>
-              )}
-              {mode === "agency" && item.status === "changes_requested" && (
-                <button className="btn primary" onClick={() => handleReviseClick(item.id)}>
-                  Upload revision
-                </button>
-              )}
-
-              {mode === "client" && item.status === "pending_approval" && (
+              {item.status === "pending_approval" && (
                 <div className="approval-actions">
                   <button className="btn primary" onClick={() => setStatus(item.id, "approved")}>Approve</button>
                   <button className="btn ghost-critical" onClick={() => setStatus(item.id, "changes_requested")}>Request changes</button>
+                  {mode === "agency" && (
+                    <button className="btn" onClick={() => handleSendReminder(item)}>
+                      {remindedId === item.id ? "Sent!" : "Send reminder"}
+                    </button>
+                  )}
                 </div>
+              )}
+              {item.status === "changes_requested" && mode === "agency" && (
+                <button className="btn primary" onClick={() => handleReviseClick(item.id)}>
+                  Upload revision
+                </button>
               )}
             </div>
           </div>

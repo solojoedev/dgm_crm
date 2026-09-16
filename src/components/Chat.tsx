@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type MessageRow = {
@@ -21,6 +21,12 @@ export default function Chat({ initialMessages, clientId, userId, clientName }: 
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -69,7 +75,7 @@ export default function Chat({ initialMessages, clientId, userId, clientName }: 
       <div className="chat-wrap chat-wrap-single">
         <div className="thread">
           <div className="thread-head">{clientName}</div>
-          <div className="thread-body">
+          <div className="thread-body" ref={bodyRef}>
             {messages.length === 0 && (
               <p style={{ color: "var(--muted)", fontSize: ".85rem" }}>No messages yet — say hello.</p>
             )}
