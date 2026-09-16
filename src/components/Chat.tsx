@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type MessageRow = {
@@ -22,6 +22,27 @@ export default function Chat({ initialMessages, clientId, userId, clientName }: 
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
 
+  useEffect(() => {
+    if (!clientId) return;
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`messages-${clientId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `client_id=eq.${clientId}` },
+        (payload) => {
+          const incoming = payload.new as MessageRow;
+          setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [clientId]);
+
   async function handleSend() {
     if (!draft.trim() || !clientId || sending) return;
     setSending(true);
@@ -33,7 +54,7 @@ export default function Chat({ initialMessages, clientId, userId, clientName }: 
       .single();
     setSending(false);
     if (!error && data) {
-      setMessages((prev) => [...prev, data as MessageRow]);
+      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data as MessageRow]));
       setDraft("");
     }
   }
