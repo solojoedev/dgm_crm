@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type ApprovalRow = {
@@ -47,6 +47,34 @@ export default function Approvals({ mode, initialApprovals, clientId, userId }: 
   const [remindedId, setRemindedId] = useState<string | null>(null);
   const [revisingId, setRevisingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!clientId) return;
+    const supabase = createClient();
+
+    async function poll() {
+      const { data } = await supabase
+        .from("content_items")
+        .select("id, caption, platform, status, note, clients(name)")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false });
+      if (data) {
+        setApprovals(
+          data.map((row) => ({
+            id: row.id,
+            caption: row.caption,
+            platform: row.platform,
+            status: row.status,
+            note: row.note,
+            clientName: (row.clients as unknown as { name: string } | null)?.name ?? "Client",
+          }))
+        );
+      }
+    }
+
+    const interval = setInterval(poll, 4000);
+    return () => clearInterval(interval);
+  }, [clientId]);
 
   async function setStatus(id: string, status: string) {
     setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));

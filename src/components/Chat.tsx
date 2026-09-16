@@ -44,8 +44,21 @@ export default function Chat({ initialMessages, clientId, userId, clientName }: 
       )
       .subscribe();
 
+    async function poll() {
+      const { data } = await supabase
+        .from("messages")
+        .select("id, body, created_at, sender_id")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: true });
+      if (data) {
+        setMessages((prev) => (data.length === prev.length ? prev : (data as MessageRow[])));
+      }
+    }
+    const interval = setInterval(poll, 3000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [clientId]);
 
