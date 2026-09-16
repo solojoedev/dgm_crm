@@ -251,6 +251,7 @@ td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: .86r
 tr:last-child td { border-bottom: 0; }
 .file-name { display: flex; align-items: center; gap: 10px; font-weight: 600; }
 .file-icon { width: 30px; height: 30px; border-radius: 7px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; flex: none; }
+.file-thumb { width: 30px; height: 30px; border-radius: 7px; object-fit: cover; flex: none; }
 
 .meeting-form { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
 .meeting-form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }

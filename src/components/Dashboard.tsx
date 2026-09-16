@@ -129,7 +129,9 @@ export default function Dashboard({
           {activeView === "approvals" && clientId && (
             <Approvals mode={mode} initialApprovals={initialApprovals} clientId={clientId} userId={userId} />
           )}
-          {activeView === "files" && clientId && <Files initialFiles={initialFiles} clientId={clientId} clientName={clientName} />}
+          {activeView === "files" && clientId && (
+            <Files mode={mode} initialFiles={initialFiles} clientId={clientId} clientName={clientName} />
+          )}
           {activeView === "meetings" && clientId && (
             <Meetings mode={mode} initialMeetings={initialMeetings} clientId={clientId} />
           )}
