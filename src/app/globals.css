@@ -306,6 +306,13 @@ tr:last-child td { border-bottom: 0; }
   padding: 9px 12px; font-size: .88rem; color: var(--ink); outline: 0; margin-top: 4px;
 }
 .field-error { color: var(--critical); font-size: .8rem; margin-top: 8px; }
+.btn-google {
+  border: 1px solid var(--border); background: var(--panel-2); border-radius: 8px;
+  padding: 10px; font-size: .88rem; font-weight: 600; color: var(--ink);
+}
+.btn-google:hover { background: var(--paper); }
+.login-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted); font-size: .78rem; }
+.login-divider::before, .login-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 .btn-submit {
   margin-top: 18px; background: var(--accent); color: #fff; border: 0; border-radius: 8px;
   padding: 10px; font-size: .88rem; font-weight: 600;

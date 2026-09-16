@@ -26,11 +26,29 @@ export default function LoginPage() {
 
     }
 
+    async function handleGoogleSignIn() {
+        setError("");
+        const supabase = createClient();
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: { redirectTo: `${window.location.origin}/auth/callback` },
+        });
+        if (error) {
+            setError(error.message);
+        }
+    }
+
     return (
         <div className="login-wrap">
             <form className="login-card" onSubmit={handleSubmit}>
                 <h1 className="brand-mark">Tandem</h1>
                 <p className="login-sub">Sign in to your workspace</p>
+
+                <button type="button" className="btn-google" onClick={handleGoogleSignIn}>
+                    Sign in with Google
+                </button>
+
+                <div className="login-divider"><span>or</span></div>
 
                 <label className="field-label">Email</label>
                 <input
