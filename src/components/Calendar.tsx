@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Post = {
@@ -8,6 +8,7 @@ type Post = {
   caption: string | null;
   status: string;
   scheduled_at: string;
+  imageUrl: string | null;
 };
 
 const statusMeta: Record<string, { label: string; chip: string }> = {
@@ -40,12 +41,27 @@ export default function Calendar({ mode, clientId, clientName, initialPosts }: C
   const [caption, setCaption] = useState("");
   const [platform, setPlatform] = useState("ig_feed");
   const [when, setWhen] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleCreate() {
     if (!clientId || !caption.trim() || !when || saving) return;
     setSaving(true);
     const supabase = createClient();
+
+    let storagePath: string | null = null;
+    let imageUrl: string | null = null;
+    if (file) {
+      const path = `content/${clientId}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("files").upload(path, file);
+      if (!uploadError) {
+        storagePath = path;
+        const { data: signed } = await supabase.storage.from("files").createSignedUrl(path, 3600);
+        imageUrl = signed?.signedUrl ?? null;
+      }
+    }
+
     const { data, error } = await supabase
       .from("content_items")
       .insert({
@@ -54,14 +70,17 @@ export default function Calendar({ mode, clientId, clientName, initialPosts }: C
         platform,
         status: "pending_approval",
         scheduled_at: new Date(when).toISOString(),
+        storage_path: storagePath,
       })
       .select()
       .single();
     setSaving(false);
     if (!error && data) {
-      setPosts((prev) => [...prev, data as Post]);
+      setPosts((prev) => [...prev, { ...(data as Omit<Post, "imageUrl">), imageUrl }]);
       setCaption("");
       setWhen("");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setShowForm(false);
     }
   }
@@ -116,6 +135,17 @@ export default function Calendar({ mode, clientId, clientName, initialPosts }: C
               <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
             </div>
           </div>
+          <div className="meeting-form-row">
+            <div className="meeting-form-field">
+              <label>Photo/video (optional)</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+          </div>
           <button className="btn primary" onClick={handleCreate} disabled={saving}>
             {saving ? "Sending…" : "Send for approval"}
           </button>
@@ -128,7 +158,12 @@ export default function Calendar({ mode, clientId, clientName, initialPosts }: C
             <div className="cal-col-head">{day.label} <strong>{day.date}</strong></div>
             {day.posts.map((post, idx) => (
               <div className="post-card" key={post.id}>
-                <div className="thumb" style={{ background: thumbColors[idx % thumbColors.length] }}></div>
+                {post.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={post.imageUrl} alt="" className="thumb" style={{ objectFit: "cover" }} />
+                ) : (
+                  <div className="thumb" style={{ background: thumbColors[idx % thumbColors.length] }}></div>
+                )}
                 <div className="time">
                   {new Date(post.scheduled_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                 </div>

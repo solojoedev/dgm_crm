@@ -47,6 +47,7 @@ type PostRow = {
   caption: string | null;
   status: string;
   scheduled_at: string;
+  imageUrl: string | null;
 };
 
 type FileRow = {
