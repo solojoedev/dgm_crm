@@ -84,6 +84,7 @@ type DashboardProps = {
   clientId: string | null;
   clientName: string;
   userId: string;
+  isAgencyMember: boolean;
 };
 
 export default function Dashboard({
@@ -99,9 +100,10 @@ export default function Dashboard({
   clientId,
   clientName,
   userId,
+  isAgencyMember,
 }: DashboardProps) {
   const [activeView, setActiveView] = useState("overview");
-  const [mode, setMode] = useState<"agency" | "client">("agency");
+  const [mode, setMode] = useState<"agency" | "client">(isAgencyMember ? "agency" : "client");
 
   return (
     <div className="app">
@@ -113,6 +115,7 @@ export default function Dashboard({
         clients={clients}
         selectedClientId={clientId}
         agencyId={agencyId}
+        lockMode={!isAgencyMember}
       />
       <div className="main">
         <Topbar title={titles[activeView] ?? "Tandem"} mode={mode} />

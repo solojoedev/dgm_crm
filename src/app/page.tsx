@@ -42,6 +42,7 @@ export default async function Home({
   const clientId = selected?.id ?? null;
   const clientName = selected?.name ?? "your client";
   const agencyId = membership?.agency_id ?? null;
+  const isAgencyMember = !!membership;
 
   const [{ data: proofs }, { data: approvalRows }, { data: meetings }, { data: files }, { data: messages }] = await Promise.all([
     clientId
@@ -117,6 +118,7 @@ export default async function Home({
       clientId={clientId}
       clientName={clientName}
       userId={user.id}
+      isAgencyMember={isAgencyMember}
     />
   );
 }

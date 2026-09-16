@@ -15,6 +15,7 @@ type SidebarProps = {
   clients: ClientOption[];
   selectedClientId: string | null;
   agencyId: string | null;
+  lockMode: boolean;
 };
 
 const navItems = [
@@ -35,6 +36,7 @@ export default function Sidebar({
   clients,
   selectedClientId,
   agencyId,
+  lockMode,
 }: SidebarProps) {
     const router = useRouter();
     const [newClientName, setNewClientName] = useState("");
@@ -105,21 +107,30 @@ export default function Sidebar({
             </nav>
 
             <div className="sidebar-footer">
-                <div className="mode-label">Viewing as</div>
-                <div className="mode-toggle">
-                    <button
-                        className={`mode-btn ${mode === "agency" ? "is-active" : ""}`}
-                        onClick={() => onModeChange("agency")}
-                    >
-                        Agency
-                    </button>
-                    <button
-                        className={`mode-btn ${mode === "client" ? "is-active" : ""}`}
-                        onClick={() => onModeChange("client")}
-                    >
-                        Client
-                    </button>
-                </div>
+                {lockMode ? (
+                    <>
+                        <div className="mode-label">Signed in as</div>
+                        <div className="mode-static">Client</div>
+                    </>
+                ) : (
+                    <>
+                        <div className="mode-label">Viewing as</div>
+                        <div className="mode-toggle">
+                            <button
+                                className={`mode-btn ${mode === "agency" ? "is-active" : ""}`}
+                                onClick={() => onModeChange("agency")}
+                            >
+                                Agency
+                            </button>
+                            <button
+                                className={`mode-btn ${mode === "client" ? "is-active" : ""}`}
+                                onClick={() => onModeChange("client")}
+                            >
+                                Client
+                            </button>
+                        </div>
+                    </>
+                )}
                 <form action={signOut}>
                     <button className="signout-btn" type="submit">Sign out</button>
                 </form>
