@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Dashboard from "@/components/Dashboard";
 import Overview from "@/components/Overview";
-import Calendar from "@/components/Calendar";
 
 type MessageRow = { id: string; body: string; created_at: string; sender_id: string | null };
 
@@ -49,7 +48,7 @@ export default async function Home({
       ? supabase.from("proofs").select("id, caption, expires_at, liked, storage_path").eq("client_id", clientId).order("expires_at", { ascending: true })
       : Promise.resolve({ data: [] }),
     clientId
-      ? supabase.from("content_items").select("id, caption, platform, status, note, clients(name)").eq("client_id", clientId).order("created_at", { ascending: false })
+      ? supabase.from("content_items").select("id, caption, platform, status, note, scheduled_at, clients(name)").eq("client_id", clientId).order("created_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     clientId
       ? supabase.from("meetings").select("id, title, platform, join_url, scheduled_at").eq("client_id", clientId).order("scheduled_at", { ascending: true })
@@ -75,6 +74,7 @@ export default async function Home({
     caption: p.caption,
     expires_at: p.expires_at,
     liked: p.liked,
+    storagePath: p.storage_path,
     imageUrl: proofUrlMap.get(p.storage_path) ?? null,
   }));
 
@@ -95,14 +95,22 @@ export default async function Home({
     clientName: (row.clients as unknown as { name: string } | null)?.name ?? "Client",
   }));
 
+  const posts = (approvalRows ?? []).map((row) => ({
+    id: row.id,
+    caption: row.caption,
+    platform: row.platform,
+    status: row.status,
+    scheduled_at: row.scheduled_at as string,
+  }));
+
   return (
     <Dashboard
       overview={<Overview />}
-      calendar={<Calendar clientId={clientId} />}
       clients={clientList}
       agencyId={agencyId}
       initialProofs={signedProofs}
       initialApprovals={approvals}
+      initialPosts={posts}
       initialFiles={signedFiles}
       initialMeetings={meetings ?? []}
       initialMessages={(messages ?? []) as MessageRow[]}

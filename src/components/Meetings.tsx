@@ -34,6 +34,17 @@ export default function Meetings({ mode, initialMeetings, clientId }: MeetingsPr
   const [when, setWhen] = useState("");
   const [platform, setPlatform] = useState("zoom");
   const [saving, setSaving] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function handleCopy(id: string, url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 2000);
+    } catch {
+      // clipboard access denied or unavailable; nothing more we can do here
+    }
+  }
 
   async function handleCreate() {
     if (!clientId || saving) return;
@@ -122,7 +133,9 @@ export default function Meetings({ mode, initialMeetings, clientId }: MeetingsPr
               <div className="meeting-link">{meeting.join_url.replace(/^https?:\/\//, "")}</div>
             </div>
             <div className="meeting-actions">
-              <button className="btn">Copy link</button>
+              <button className="btn" onClick={() => handleCopy(meeting.id, meeting.join_url)}>
+                {copiedId === meeting.id ? "Copied!" : "Copy link"}
+              </button>
             </div>
           </div>
         ))}

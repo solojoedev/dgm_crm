@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type ApprovalRow = {
@@ -35,13 +35,63 @@ const thumbColors = [
   "linear-gradient(135deg,#8B4A2B,#4A2416)",
 ];
 
-export default function Approvals({ mode, initialApprovals }: { mode: "agency" | "client"; initialApprovals: ApprovalRow[] }) {
+type ApprovalsProps = {
+  mode: "agency" | "client";
+  initialApprovals: ApprovalRow[];
+  clientId: string | null;
+  userId: string;
+};
+
+export default function Approvals({ mode, initialApprovals, clientId, userId }: ApprovalsProps) {
   const [approvals, setApprovals] = useState(initialApprovals);
+  const [remindedId, setRemindedId] = useState<string | null>(null);
+  const [revisingId, setRevisingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function setStatus(id: string, status: string) {
     setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
     const supabase = createClient();
     await supabase.from("content_items").update({ status }).eq("id", id);
+  }
+
+  async function handleSendReminder(item: ApprovalRow) {
+    if (!clientId) return;
+    const supabase = createClient();
+    const { error } = await supabase.from("messages").insert({
+      client_id: clientId,
+      sender_id: userId,
+      body: `Reminder: "${item.caption ?? "this post"}" is still waiting on your review.`,
+    });
+    if (!error) {
+      setRemindedId(item.id);
+      setTimeout(() => setRemindedId((current) => (current === item.id ? null : current)), 2000);
+    }
+  }
+
+  function handleReviseClick(id: string) {
+    setRevisingId(id);
+    fileInputRef.current?.click();
+  }
+
+  async function handleReviseFile(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file || !revisingId || !clientId) return;
+    const id = revisingId;
+    setRevisingId(null);
+
+    const supabase = createClient();
+    const path = `content/${clientId}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("files").upload(path, file);
+    if (uploadError) return;
+
+    const { error: updateError } = await supabase
+      .from("content_items")
+      .update({ storage_path: path, status: "pending_approval" })
+      .eq("id", id);
+    if (!updateError) {
+      setApprovals((prev) => prev.map((a) => (a.id === id ? { ...a, status: "pending_approval" } : a)));
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   const visible = mode === "agency" ? approvals : approvals.filter((a) => ["pending_approval", "changes_requested"].includes(a.status) || a.status === "approved");
@@ -56,6 +106,14 @@ export default function Approvals({ mode, initialApprovals }: { mode: "agency" |
           <p>Review what&apos;s going out under your name before it&apos;s live.</p>
         )}
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        style={{ display: "none" }}
+        onChange={(e) => handleReviseFile(e.target.files)}
+      />
 
       <div className="approval-list">
         {visible.map((item, idx) => (
@@ -72,10 +130,14 @@ export default function Approvals({ mode, initialApprovals }: { mode: "agency" |
               {item.note && <div className="approval-note">&quot;{item.note}&quot; — client</div>}
 
               {mode === "agency" && item.status === "pending_approval" && (
-                <button className="btn">Send reminder</button>
+                <button className="btn" onClick={() => handleSendReminder(item)}>
+                  {remindedId === item.id ? "Sent!" : "Send reminder"}
+                </button>
               )}
               {mode === "agency" && item.status === "changes_requested" && (
-                <button className="btn primary">Upload revision</button>
+                <button className="btn primary" onClick={() => handleReviseClick(item.id)}>
+                  Upload revision
+                </button>
               )}
 
               {mode === "client" && item.status === "pending_approval" && (

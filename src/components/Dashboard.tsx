@@ -3,11 +3,13 @@
 import { useState, type ReactNode } from "react";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
+import Calendar from "@/components/Calendar";
 import Proofs from "@/components/Proofs";
 import Approvals from "@/components/Approvals";
 import Files from "@/components/Files";
 import Meetings from "@/components/Meetings";
 import Chat from "@/components/Chat";
+import NoClientPrompt from "@/components/NoClientPrompt";
 
 const titles: Record<string, string> = {
   overview: "Overview",
@@ -26,6 +28,7 @@ type ProofRow = {
   caption: string | null;
   expires_at: string;
   liked: boolean;
+  storagePath: string;
   imageUrl: string | null;
 };
 
@@ -36,6 +39,13 @@ type ApprovalRow = {
   status: string;
   note: string | null;
   clientName: string;
+};
+
+type PostRow = {
+  id: string;
+  caption: string | null;
+  status: string;
+  scheduled_at: string;
 };
 
 type FileRow = {
@@ -63,11 +73,11 @@ type MessageRow = {
 
 type DashboardProps = {
   overview: ReactNode;
-  calendar: ReactNode;
   clients: ClientOption[];
   agencyId: string | null;
   initialProofs: ProofRow[];
   initialApprovals: ApprovalRow[];
+  initialPosts: PostRow[];
   initialFiles: FileRow[];
   initialMeetings: MeetingRow[];
   initialMessages: MessageRow[];
@@ -78,11 +88,11 @@ type DashboardProps = {
 
 export default function Dashboard({
   overview,
-  calendar,
   clients,
   agencyId,
   initialProofs,
   initialApprovals,
+  initialPosts,
   initialFiles,
   initialMeetings,
   initialMessages,
@@ -108,14 +118,19 @@ export default function Dashboard({
         <Topbar title={titles[activeView] ?? "Tandem"} mode={mode} />
         <main className="content">
           {activeView === "overview" && overview}
-          {activeView === "calendar" && calendar}
-          {activeView === "proofs" && <Proofs mode={mode} initialProofs={initialProofs} clientId={clientId} />}
-          {activeView === "approvals" && <Approvals mode={mode} initialApprovals={initialApprovals} />}
-          {activeView === "files" && <Files initialFiles={initialFiles} clientId={clientId} clientName={clientName} />}
-          {activeView === "meetings" && (
+          {activeView !== "overview" && !clientId && <NoClientPrompt agencyId={agencyId} />}
+          {activeView === "calendar" && clientId && (
+            <Calendar mode={mode} clientId={clientId} clientName={clientName} initialPosts={initialPosts} />
+          )}
+          {activeView === "proofs" && clientId && <Proofs mode={mode} initialProofs={initialProofs} clientId={clientId} />}
+          {activeView === "approvals" && clientId && (
+            <Approvals mode={mode} initialApprovals={initialApprovals} clientId={clientId} userId={userId} />
+          )}
+          {activeView === "files" && clientId && <Files initialFiles={initialFiles} clientId={clientId} clientName={clientName} />}
+          {activeView === "meetings" && clientId && (
             <Meetings mode={mode} initialMeetings={initialMeetings} clientId={clientId} />
           )}
-          {activeView === "chat" && (
+          {activeView === "chat" && clientId && (
             <Chat initialMessages={initialMessages} clientId={clientId} userId={userId} clientName={clientName} />
           )}
         </main>

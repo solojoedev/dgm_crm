@@ -8,6 +8,7 @@ type ProofRow = {
   caption: string | null;
   expires_at: string;
   liked: boolean;
+  storagePath: string;
   imageUrl: string | null;
 };
 
@@ -40,12 +41,30 @@ type ProofsProps = {
 export default function Proofs({ mode, initialProofs, clientId }: ProofsProps) {
   const [proofs, setProofs] = useState(initialProofs);
   const [uploading, setUploading] = useState(false);
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function toggleLike(id: string, liked: boolean) {
     setProofs((prev) => prev.map((p) => (p.id === id ? { ...p, liked } : p)));
     const supabase = createClient();
     await supabase.from("proofs").update({ liked }).eq("id", id);
+  }
+
+  async function handleAddToCalendar(proof: ProofRow) {
+    if (!clientId) return;
+    const supabase = createClient();
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const { error } = await supabase.from("content_items").insert({
+      client_id: clientId,
+      caption: proof.caption,
+      storage_path: proof.storagePath,
+      platform: "ig_feed",
+      status: "pending_approval",
+      scheduled_at: tomorrow.toISOString(),
+    });
+    if (!error) {
+      setAddedIds((prev) => new Set(prev).add(proof.id));
+    }
   }
 
   async function handleFiles(fileList: FileList | null) {
@@ -75,6 +94,7 @@ export default function Proofs({ mode, initialProofs, clientId }: ProofsProps) {
         caption: inserted.caption,
         expires_at: inserted.expires_at,
         liked: false,
+        storagePath: path,
         imageUrl: signed?.signedUrl ?? null,
       });
     }
@@ -128,7 +148,15 @@ export default function Proofs({ mode, initialProofs, clientId }: ProofsProps) {
                 <div style={{ position: "absolute", inset: 0, background: thumbColors[idx % thumbColors.length] }}></div>
               )}
               <div className="proof-overlay"><span>{proof.caption}</span></div>
-              {proof.liked && mode === "agency" && <button className="btn proof-addcal">+ Calendar</button>}
+              {proof.liked && mode === "agency" && (
+                <button
+                  className="btn proof-addcal"
+                  onClick={() => handleAddToCalendar(proof)}
+                  disabled={addedIds.has(proof.id)}
+                >
+                  {addedIds.has(proof.id) ? "Added ✓" : "+ Calendar"}
+                </button>
+              )}
               <button
                 className={`proof-heart ${proof.liked ? "liked" : ""}`}
                 aria-pressed={proof.liked}
