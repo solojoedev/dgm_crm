@@ -174,6 +174,17 @@ button { font-family: inherit; cursor: pointer; }
 .chip.critical { background: var(--critical-soft); color: var(--critical); }
 .chip.neutral { background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
 
+.cal-layout { display: grid; grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
+.storyboard { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 0; }
+.storyboard-head { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.storyboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.storyboard-cell { position: relative; aspect-ratio: 1/1; border-radius: 4px; overflow: hidden; border: 0; padding: 0; background: var(--panel-2); }
+.storyboard-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (max-width: 920px) {
+  .cal-layout { grid-template-columns: 1fr; }
+  .storyboard-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
 .cal-month-head { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 12px; }
 .cal-month-label { font-family: Georgia, serif; font-size: 1.1rem; min-width: 180px; text-align: center; }
 

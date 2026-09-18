@@ -45,6 +45,7 @@ type ApprovalRow = {
 type PostRow = {
   id: string;
   caption: string | null;
+  platform: string;
   status: string;
   scheduled_at: string | null;
   imageUrl: string | null;
