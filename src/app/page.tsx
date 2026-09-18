@@ -106,7 +106,7 @@ export default async function Home({
     caption: row.caption,
     platform: row.platform,
     status: row.status,
-    scheduled_at: row.scheduled_at as string,
+    scheduled_at: row.scheduled_at as string | null,
     imageUrl: row.storage_path ? approvalUrlMap.get(row.storage_path as string) ?? null : null,
   }));
 

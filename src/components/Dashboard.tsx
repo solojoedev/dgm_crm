@@ -46,7 +46,7 @@ type PostRow = {
   id: string;
   caption: string | null;
   status: string;
-  scheduled_at: string;
+  scheduled_at: string | null;
   imageUrl: string | null;
 };
 
